@@ -1,0 +1,5 @@
+package projectgen
+
+func GenerateProject() {
+
+}
