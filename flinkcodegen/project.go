@@ -58,7 +58,7 @@ func (p *Project) InitExtraStreams(nameTopic map[string]string) {
 // GenerateProject will render the Java code
 func (p *Project) GenerateProject(renderedOperation string) error {
 
-	path := strings.TrimSuffix(p.OutputPath, "/") + "/Main.java"
+	path := strings.TrimSuffix(p.OutputPath, "/") + "/java/src/com/turingml/Main.java"
 	m := mustache.RenderFile("./resources/Main.java", map[string]string{
 		"functions": renderedOperation,
 	})
