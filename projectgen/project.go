@@ -1,5 +1,0 @@
-package projectgen
-
-func GenerateProject() {
-
-}
