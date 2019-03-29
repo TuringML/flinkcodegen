@@ -18,9 +18,8 @@ func NewDataStream(name, topic string) *DataStream {
 
 // Render will generate the string of the current DataStream object
 func (ds *DataStream) Render() string {
-	javaObjStr := `DataStream<String> {{ name }} = env.addSource(
-		new FlinkKafkaConsumer011<>({{ topic }}, new AvroDeserializationSchema(), parameterTool.getProperties())
-	);`
+	javaObjStr := `DataStream<String> {{ name }} = 
+		env.addSource(new FlinkKafkaConsumer011<>("{{ topic }}", new AvroDeserializationSchema(), parameterTool.getProperties()));`
 
 	return mustache.Render(javaObjStr, map[string]string{"name": ds.Name, "topic": ds.Topic})
 }

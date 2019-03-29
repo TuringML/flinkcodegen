@@ -4,48 +4,37 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/hoisie/mustache"
 )
 
-// OperationType is the enum of the type of operations that needs to be performed
-type OperationType int
-
-const (
-	// UnionType will perform an union among datastreams
-	UnionType OperationType = iota
-	// WindowJoinType will perform a join between two datastreams
-	WindowJoinType
-)
-
 // Project is the main container before generating the Java code
 type Project struct {
-	Name          string
-	OutputPath    string
-	LeftStream    *DataStream
-	RightStream   *DataStream
-	ExtraStreams  []*DataStream
-	OperationType OperationType
+	Name         string
+	OutputPath   string
+	LeftStream   *DataStream
+	RightStream  *DataStream
+	ExtraStreams []*DataStream
 }
 
 // NewProject will return the skeleton for a Java project
-func NewProject(name, outputPath string, t OperationType) *Project {
+func NewProject(name, outputPath string) *Project {
+	pwd, _ := os.Getwd()
 	return &Project{
-		Name:          name,
-		OutputPath:    outputPath,
-		OperationType: t,
+		Name:       name,
+		OutputPath: path.Join(pwd, outputPath),
 	}
 }
 
-// InitLeftStream will add the datastream that the operation will be perfomed on
-func (p *Project) InitLeftStream(name, topic string) {
-	p.LeftStream = NewDataStream(name, topic)
-}
-
-// InitRightStream will add the datastream that will be union,joined, etc with
-func (p *Project) InitRightStream(name, topic string) {
-	p.RightStream = NewDataStream(name, topic)
+// InitStream will add the datastream that the operation will be perfomed on
+func (p *Project) InitStream(name, topic string, isLeft bool) {
+	if isLeft {
+		p.LeftStream = NewDataStream(name, topic)
+	} else {
+		p.RightStream = NewDataStream(name, topic)
+	}
 }
 
 // InitExtraStreams is used in particular with Union when multiple streams will be union with
@@ -56,24 +45,24 @@ func (p *Project) InitExtraStreams(nameTopic map[string]string) {
 }
 
 // GenerateProject will render the Java code
-func (p *Project) GenerateProject(renderedOperation string) error {
+func (p *Project) GenerateProject(renderedStreams, renderedOperation string) error {
+	mainPath := path.Join(p.OutputPath, "/java/src/com/turingml")
 
-	path := strings.TrimSuffix(p.OutputPath, "/") + "/java/src/com/turingml/Main.java"
-	m := mustache.RenderFile("./resources/Main.java", map[string]string{
+	pwd, _ := os.Getwd()
+	m := mustache.RenderFile(path.Join(pwd, "/resources/Main.java"), map[string]string{
+		"streams":   renderedStreams,
 		"functions": renderedOperation,
 	})
 
 	// write the Main.java to output
-	err := writeToFile(path, m)
+	err := writeToFile(mainPath, "Main.java", m)
 	if err != nil {
 		return err
 	}
 
 	// copy pom.xml to output path
-	po := strings.TrimSuffix(p.OutputPath, "/") + "/pom.xml"
-	copyFile("./resources/pom.xml", po)
-
-	return nil
+	po := path.Join(p.OutputPath, "pom.xml")
+	return copyFile(path.Join(pwd, "/resources/pom.xml"), po)
 }
 
 // RenderWindowJoin will render the window join operation
@@ -96,13 +85,35 @@ func (p *Project) RenderUnion(name string) (string, error) {
 	return u.Render(), nil
 }
 
-func writeToFile(path, s string) error {
-	f, err := os.Create(path)
+// RenderAllStreams will return the rendered string with all the streams
+func (p *Project) RenderAllStreams() string {
+	streams := []string{}
+
+	streams = append(streams, p.LeftStream.Render())
+	streams = append(streams, p.RightStream.Render())
+
+	for _, st := range p.ExtraStreams {
+		streams = append(streams, st.Name)
+	}
+	return strings.Join(streams, "\n")
+}
+
+func writeToFile(p, fileName, s string) error {
+	// Create path if not exists
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		if err = os.MkdirAll(p, os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	// Create file
+	f, err := os.Create(path.Join(p, fileName))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
+	// write content to file
 	_, err = f.WriteString(s)
 	if err != nil {
 		return err

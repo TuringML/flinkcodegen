@@ -27,7 +27,7 @@ func NewWindowJoin(name, la, ra string, ws int, ls, rs *DataStream) *WindowJoin 
 // Render will generate the string of the current WindowJoin object
 func (wj *WindowJoin) Render() string {
 	javaObjStr := `DataStream<String> {{ name }} = {{ leftStreamName }}.join({{ rightStreamName }})
-	.where({{ leftAttribute }}).equalTo({{ rightAttribute }})
+	.where("{{ leftAttribute }}").equalTo("{{ rightAttribute }}")
 	.window(TumblingEventTimeWindows.of(Time.seconds({{ windowSize }})));`
 
 	return mustache.Render(javaObjStr, map[string]interface{}{
