@@ -37,10 +37,16 @@ func (p *Project) InitStream(name, topic string, isLeft bool) {
 	}
 }
 
+// NameTopic is a support struct for creating multiple datastreams
+type NameTopic struct {
+	Name  string
+	Topic string
+}
+
 // InitExtraStreams is used in particular with Union when multiple streams will be union with
-func (p *Project) InitExtraStreams(nameTopic map[string]string) {
-	for name, topic := range nameTopic {
-		p.ExtraStreams = append(p.ExtraStreams, NewDataStream(name, topic))
+func (p *Project) InitExtraStreams(nameTopic []*NameTopic) {
+	for _, nt := range nameTopic {
+		p.ExtraStreams = append(p.ExtraStreams, NewDataStream(nt.Name, nt.Topic))
 	}
 }
 
