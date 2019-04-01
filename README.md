@@ -39,3 +39,11 @@ func main() {
     }
 }
 ```
+
+# TODO
+
+- [ ] Add Kafka initialization
+- [ ] Add more tests
+- [ ] Add Docker image (?)
+- [ ] Add Maven pipeline for testing the output
+- [ ] Add CI/CD (?)
