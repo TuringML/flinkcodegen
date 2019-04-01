@@ -28,9 +28,11 @@ public class Main {
         // parse user parameters
         ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-        {{{streams}}}
+        {{{source_streams}}}
 
         {{{functions}}}
+
+        {{{sink_stream}}}
 
         env.execute();
     }

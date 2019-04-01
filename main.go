@@ -6,14 +6,16 @@ import (
 
 func main() {
 	// create new project
-	p := flinkcodegen.NewProject("test", "output")
+	p := flinkcodegen.NewProject("test", "output", "topic-outpit")
 
 	// init datastreams and get the rendered value
-	p.InitStream("leftDS", "test-join", true)
-	p.InitStream("rightDS", "test-join-new", false)
+	p.SourceStream("leftDS", "test-join", true)
+	p.SourceStream("rightDS", "test-join-new", false)
+	p.SinkStream("localhost:9092")
 
-	// render every stream created above
-	streams := p.RenderAllStreams()
+	// render every source stream created above
+	sourceStreams := p.RenderSourceStreams()
+	sinkStream := p.RenderSinkStream()
 
 	// render the operation you want to perform
 	join, err := p.RenderWindowJoin("joinDS", "name-left", "name-right", 5)
@@ -22,7 +24,7 @@ func main() {
 	}
 
 	// Generate files of the project
-	err = p.GenerateProject(streams, join)
+	err = p.GenerateProject(sourceStreams, join)
 	if err != nil {
 		panic(err)
 	}

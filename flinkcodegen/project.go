@@ -2,6 +2,7 @@ package flinkcodegen
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -12,28 +13,41 @@ import (
 
 // Project is the main container before generating the Java code
 type Project struct {
-	Name         string
-	OutputPath   string
-	LeftStream   *DataStream
-	RightStream  *DataStream
-	ExtraStreams []*DataStream
+	Name           string
+	OutputPath     string
+	OutputTopic    string
+	LeftStream     *DataStream
+	RightStream    *DataStream
+	ExtraStreams   []*DataStream
+	SinkDataStream *SinkDataStream
 }
 
 // NewProject will return the skeleton for a Java project
-func NewProject(name, outputPath string) *Project {
+func NewProject(name, outputPath, outputTopic string) *Project {
 	pwd, _ := os.Getwd()
+	fmt.Println(pwd)
 	return &Project{
-		Name:       name,
-		OutputPath: path.Join(pwd, outputPath),
+		Name:        name,
+		OutputTopic: outputTopic,
+		OutputPath:  path.Join(pwd, outputPath),
 	}
 }
 
-// InitStream will add the datastream that the operation will be perfomed on
-func (p *Project) InitStream(name, topic string, isLeft bool) {
+// SourceStream will add the datastream that the operation will be perfomed on
+func (p *Project) SourceStream(name, topic string, isLeft bool) {
 	if isLeft {
 		p.LeftStream = NewDataStream(name, topic)
 	} else {
 		p.RightStream = NewDataStream(name, topic)
+	}
+}
+
+// SinkStream will generate a datastream where to store the results
+func (p *Project) SinkStream(brokersURL string) {
+	p.SinkDataStream = &SinkDataStream{
+		Topic:      p.OutputTopic,
+		BrokerURL:  brokersURL,
+		LeftStream: p.LeftStream,
 	}
 }
 
@@ -51,13 +65,14 @@ func (p *Project) InitExtraStreams(nameTopic []*NameTopic) {
 }
 
 // GenerateProject will render the Java code
-func (p *Project) GenerateProject(renderedStreams, renderedOperation string) error {
+func (p *Project) GenerateProject(renderedStreams, renderedOperation, renderedSinkStream string) error {
 	mainPath := path.Join(p.OutputPath, "/java/src/com/turingml")
 
 	pwd, _ := os.Getwd()
 	m := mustache.RenderFile(path.Join(pwd, "/resources/Main.java"), map[string]string{
-		"streams":   renderedStreams,
-		"functions": renderedOperation,
+		"source_streams": renderedStreams,
+		"functions":      renderedOperation,
+		"sink_stream":    renderedSinkStream,
 	})
 
 	// write the Main.java to output
@@ -91,17 +106,31 @@ func (p *Project) RenderUnion(name string) (string, error) {
 	return u.Render(), nil
 }
 
-// RenderAllStreams will return the rendered string with all the streams
-func (p *Project) RenderAllStreams() string {
+// RenderSourceStreams will return the rendered string with all the streams
+func (p *Project) RenderSourceStreams() (string, error) {
 	streams := []string{}
 
+	if p.LeftStream == nil {
+		return "", errors.New("left stream has not been initialized")
+	}
 	streams = append(streams, p.LeftStream.Render())
-	streams = append(streams, p.RightStream.Render())
+
+	if p.RightStream != nil {
+		streams = append(streams, p.RightStream.Render())
+	}
 
 	for _, st := range p.ExtraStreams {
-		streams = append(streams, st.Name)
+		streams = append(streams, st.Render())
 	}
-	return strings.Join(streams, "\n")
+	return strings.Join(streams, "\n"), nil
+}
+
+// RenderSinkStream will render the sink stream
+func (p *Project) RenderSinkStream() (string, error) {
+	if p.SinkDataStream == nil {
+		return "", errors.New("sink stream has not been initialized")
+	}
+	return p.SinkDataStream.Render(), nil
 }
 
 func writeToFile(p, fileName, s string) error {
