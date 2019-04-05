@@ -21,7 +21,7 @@ func TestSinkStreamRender(t *testing.T) {
 	ssd := NewSinkDataStream("output", "localhost:9092", ds)
 
 	r := ssd.Render()
-	jo := `left.addSink(new FlinkKafkaProducer011<>("localhost:9092","output", new AvroSerializationSchema()));`
+	jo := `left.addSink(new FlinkKafkaProducer011<>("localhost:9092","output", new SimpleStringSchema()));`
 
 	assert.EqualValues(t, jo, r)
 }

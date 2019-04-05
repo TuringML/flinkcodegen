@@ -16,6 +16,8 @@ type Project struct {
 	Name           string
 	OutputPath     string
 	OutputTopic    string
+	BrokersURL     string
+	GroupID        string
 	LeftStream     *DataStream
 	RightStream    *DataStream
 	ExtraStreams   []*DataStream
@@ -23,11 +25,13 @@ type Project struct {
 }
 
 // NewProject will return the skeleton for a Java project
-func NewProject(name, outputPath, outputTopic string) *Project {
+func NewProject(name, outputPath, outputTopic, borkersURL, groupID string) *Project {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 	return &Project{
 		Name:        name,
+		BrokersURL:  borkersURL,
+		GroupID:     groupID,
 		OutputTopic: outputTopic,
 		OutputPath:  path.Join(pwd, outputPath),
 	}
@@ -43,10 +47,10 @@ func (p *Project) SourceStream(name, topic string, isLeft bool) {
 }
 
 // SinkStream will generate a datastream where to store the results
-func (p *Project) SinkStream(brokersURL string) {
+func (p *Project) SinkStream() {
 	p.SinkDataStream = &SinkDataStream{
 		Topic:      p.OutputTopic,
-		BrokerURL:  brokersURL,
+		BrokerURL:  p.BrokersURL,
 		LeftStream: p.LeftStream,
 	}
 }
@@ -70,6 +74,8 @@ func (p *Project) GenerateProject(renderedStreams, renderedOperation, renderedSi
 
 	pwd, _ := os.Getwd()
 	m := mustache.RenderFile(path.Join(pwd, "/resources/Main.java"), map[string]string{
+		"broker_servers": p.BrokersURL,
+		"group_id":       p.GroupID,
 		"source_streams": renderedStreams,
 		"functions":      renderedOperation,
 		"sink_stream":    renderedSinkStream,
@@ -81,9 +87,15 @@ func (p *Project) GenerateProject(renderedStreams, renderedOperation, renderedSi
 		return err
 	}
 
+	// copy log4j.properties to output path
+	resourcesPath := path.Join(p.OutputPath, "/resources")
+	err = copyFile(path.Join(pwd, "/resources/log4j.properties"), resourcesPath, "log4j.properties")
+	if err != nil {
+		return err
+	}
+
 	// copy pom.xml to output path
-	po := path.Join(p.OutputPath, "pom.xml")
-	return copyFile(path.Join(pwd, "/resources/pom.xml"), po)
+	return copyFile(path.Join(pwd, "/resources/pom.xml"), p.OutputPath, "pom.xml")
 }
 
 // RenderWindowJoin will render the window join operation
@@ -157,14 +169,20 @@ func writeToFile(p, fileName, s string) error {
 	return nil
 }
 
-func copyFile(src, dst string) error {
+func copyFile(src, dst, fileName string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		if err = os.MkdirAll(dst, os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	out, err := os.Create(path.Join(dst, fileName))
 	if err != nil {
 		return err
 	}

@@ -9,12 +9,12 @@ import (
 )
 
 func TestNewProject(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	assert.NotNil(t, p)
 }
 
 func TestSourceStream(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 	p.SourceStream("right", "topic-right", false)
 
@@ -23,7 +23,7 @@ func TestSourceStream(t *testing.T) {
 }
 
 func TestInitExtraStream(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 
 	p.InitExtraStreams([]*NameTopic{
 		&NameTopic{
@@ -40,16 +40,16 @@ func TestInitExtraStream(t *testing.T) {
 }
 
 func TestSinkStream(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
-	p.SinkStream("localhost:9092")
+	p.SinkStream()
 
 	assert.NotNil(t, p.LeftStream)
 	assert.NotNil(t, p.SinkDataStream)
 }
 
 func TestRenderWindowJoin(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 	p.SourceStream("right", "topic-right", false)
 
@@ -66,7 +66,7 @@ func TestRenderWindowJoin(t *testing.T) {
 }
 
 func TestFailRenderWindowJoin(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 
 	_, err := p.RenderWindowJoin("join", "left", "right", 20)
@@ -74,7 +74,7 @@ func TestFailRenderWindowJoin(t *testing.T) {
 }
 
 func TestRenderUnion(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 	p.SourceStream("right", "topic-right", false)
 
@@ -100,7 +100,7 @@ func TestRenderUnion(t *testing.T) {
 }
 
 func TestFailRenderUnion(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("right", "topic-right", false)
 
 	_, err := p.RenderUnion("join")
@@ -108,7 +108,7 @@ func TestFailRenderUnion(t *testing.T) {
 }
 
 func TestRenderAllStream(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 	p.SourceStream("right", "topic-right", false)
 
@@ -126,7 +126,7 @@ DataStream<String> right =
 }
 
 func TestRenderAllStreamExtraStreams(t *testing.T) {
-	p := NewProject("name", "output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 
 	p.InitExtraStreams([]*NameTopic{
@@ -156,10 +156,10 @@ DataStream<String> second =
 }
 
 func TestGenerateProject(t *testing.T) {
-	p := NewProject("name", "../output", "topic-out")
+	p := NewProject("name", "output", "topic-out", "localhost:9092", "test-group")
 	p.SourceStream("left", "topic-left", true)
 	p.SourceStream("right", "topic-right", false)
-	p.SinkStream("localhost:9092")
+	p.SinkStream()
 
 	streams, err := p.RenderSourceStreams()
 	if err != nil {
@@ -176,10 +176,16 @@ func TestGenerateProject(t *testing.T) {
 		t.Error(err)
 	}
 
-	p.GenerateProject(streams, joinOperation, sinkStream)
+	if err := p.GenerateProject(streams, joinOperation, sinkStream); err != nil {
+		t.Error(err)
+	}
 
 	// check if files exist
 	if _, err := os.Stat(path.Join(p.OutputPath, "/java/src/com/turingml/Main.java")); os.IsNotExist(err) {
+		t.Error(err)
+	}
+
+	if _, err := os.Stat(path.Join(p.OutputPath, "/resources/log4j.properties")); os.IsNotExist(err) {
 		t.Error(err)
 	}
 
@@ -188,4 +194,7 @@ func TestGenerateProject(t *testing.T) {
 	}
 
 	// delete output afterwards
+	if err = os.RemoveAll(p.OutputPath); err != nil {
+		t.Error(err)
+	}
 }

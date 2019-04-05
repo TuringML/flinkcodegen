@@ -12,19 +12,21 @@ The datastreams will read only from a valid Kafka Topic.
 package main
 
 import (
-    "github.com/turing-ml/flink-codegen/flinkcodegen"
+    "github.com/turing-ml/flinkcodegen"
 )
 
 func main() {
     // create new project
-    p := flinkcodegen.NewProject("test", "output")
+    p := flinkcodegen.NewProject("test", "output", "topic-outpit", "localhost:9092", "group-test")
 
     // init datastreams and get the rendered value
-    p.InitStream("leftDS", "test-join", true)
-    p.InitStream("rightDS", "test-join-new", false)
+    p.SourceStream("leftDS", "test-join", true)
+    p.SourceStream("rightDS", "test-join-new", false)
+    p.SinkStream()
 
-    // render every stream created above
-    streams := p.RenderAllStreams()
+    // render every source stream created above
+    sourceStreams, _ := p.RenderSourceStreams()
+    sinkStream, _ := p.RenderSinkStream()
 
     // render the operation you want to perform
     join, err := p.RenderWindowJoin("joinDS", "name-left", "name-right", 5)
@@ -33,7 +35,7 @@ func main() {
     }
 
     // Generate files of the project
-    err = p.GenerateProject(streams, join)
+    err = p.GenerateProject(sourceStreams, join, sinkStream)
     if err != nil {
         panic(err)
     }
@@ -42,8 +44,8 @@ func main() {
 
 # TODO
 
-- [ ] Add Kafka initialization
-- [ ] Add more tests
+- [ ] Avro Serialization when sinking via Kafka (not sure if possible)
+- [x] Add more tests
 - [ ] Add Docker image (?)
 - [ ] Add Maven pipeline for testing the output
 - [ ] Add CI/CD (?)

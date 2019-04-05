@@ -20,7 +20,7 @@ func NewSinkDataStream(topic, brokersURL string, leftStream *DataStream) *SinkDa
 
 // Render will generate the string of the current DataStream object
 func (sds *SinkDataStream) Render() string {
-	javaObjStr := `{{ name }}.addSink(new FlinkKafkaProducer011<>("{{ brokersURL }}","{{ topic }}", new AvroSerializationSchema()));`
+	javaObjStr := `{{ name }}.addSink(new FlinkKafkaProducer011<>("{{ brokersURL }}","{{ topic }}", new SimpleStringSchema()));`
 
 	return mustache.Render(javaObjStr, map[string]string{
 		"name":       sds.LeftStream.Name,
